@@ -1,0 +1,166 @@
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: Backbone Managed Tenants Reporting Connector
+  description: |
+    Collects health, compliance, and license assignment data for all managed tenants using the Microsoft Graph Managed Tenants API (requires Lighthouse and delegated authentication).
+host: graph.microsoft.com
+basePath: /beta
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  oauth2:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+    tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+    scopes:
+      ManagedTenants.Read.All: Read managed tenant data
+security:
+  - oauth2:
+      - ManagedTenants.Read.All
+paths:
+  /managedTenants/tenants:
+    get:
+      summary: List managed tenants
+      description: Lists all tenants managed via Lighthouse.
+      operationId: listManagedTenants
+      responses:
+        200:
+          description: List of managed tenants
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/ManagedTenant'
+  /managedTenants/licenseAssignments:
+    get:
+      summary: List license assignments
+      description: Returns license assignment info for managed tenants.
+      operationId: listLicenseAssignments
+      responses:
+        200:
+          description: License assignment details
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/LicenseAssignment'
+  /managedTenants/tenantHealthStatuses:
+    get:
+      summary: Get tenant health statuses
+      description: Lists health status info for all managed tenants.
+      operationId: listTenantHealthStatuses
+      responses:
+        200:
+          description: Health status for tenants
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/TenantHealthStatus'
+  /managedTenants/serviceHealthStatuses:
+    get:
+      summary: Get service health statuses
+      description: Lists service health for all managed tenants.
+      operationId: listServiceHealthStatuses
+      responses:
+        200:
+          description: Service health for tenants
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/ServiceHealthStatus'
+  /managedTenants/managedDeviceComplianceTrends:
+    get:
+      summary: Get managed device compliance trends
+      description: Returns compliance trend data for managed devices.
+      operationId: listDeviceComplianceTrends
+      responses:
+        200:
+          description: Compliance trend data
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/DeviceComplianceTrend'
+definitions:
+  ManagedTenant:
+    type: object
+    properties:
+      id:
+        type: string
+      displayName:
+        type: string
+      tenantId:
+        type: string
+  LicenseAssignment:
+    type: object
+    properties:
+      id:
+        type: string
+      tenantId:
+        type: string
+      userId:
+        type: string
+      skuId:
+        type: string
+      skuPartNumber:
+        type: string
+      assignedDateTime:
+        type: string
+  TenantHealthStatus:
+    type: object
+    properties:
+      id:
+        type: string
+      tenantId:
+        type: string
+      status:
+        type: string
+      lastUpdatedDateTime:
+        type: string
+  ServiceHealthStatus:
+    type: object
+    properties:
+      id:
+        type: string
+      tenantId:
+        type: string
+      service:
+        type: string
+      status:
+        type: string
+      lastUpdatedDateTime:
+        type: string
+  DeviceComplianceTrend:
+    type: object
+    properties:
+      id:
+        type: string
+      tenantId:
+        type: string
+      complianceTrend:
+        type: array
+        items:
+          type: object
+          properties:
+            date:
+              type: string
+            compliancePercentage:
+              type: number
