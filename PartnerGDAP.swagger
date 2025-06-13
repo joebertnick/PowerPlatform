@@ -1,0 +1,342 @@
+swagger: '2.0'
+info:
+  version: '1.1.1'
+  title: Backbone Partner GDAP Connector
+  description: |
+    Automates partner onboarding (GDAP), customer tenant management, and license pool checks (for Plus 1) in managed client tenants using Microsoft Graph.
+host: graph.microsoft.com
+basePath: /v1.0
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  oauth2:
+    type: oauth2
+    flow: application
+    tokenUrl: https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token
+    scopes:
+      Directory.Read.All: Read directory data and license pools
+      DelegatedAdminRelationship.ReadWrite.All: Manage GDAP relationships
+security:
+  - oauth2:
+      - Directory.Read.All
+      - DelegatedAdminRelationship.ReadWrite.All
+paths:
+  /subscribedSkus:
+    get:
+      summary: List all license SKUs and pool status for the current tenant
+      description: |
+        Returns all license SKUs for the customer tenant, including purchased license count (`prepaidUnits.enabled`), assigned (`consumedUnits`), and status for each SKU. 
+        Use to determine if there is an available BP license for Plus 1 onboarding.
+      operationId: getSubscribedSkus
+      responses:
+        200:
+          description: List of license SKUs in the tenant and their assignment status
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                description: List of license SKUs for the tenant
+                items:
+                  $ref: '#/definitions/SubscribedSku'
+        401:
+          description: Unauthorized - Access token missing or invalid.
+        403:
+          description: Forbidden - Insufficient permissions.
+        429:
+          description: Too Many Requests - Rate limiting enforced.
+        default:
+          description: Unexpected error.
+  /beta/tenantRelationships/delegatedAdminRelationships:
+    get:
+      summary: List all GDAP relationships
+      description: Retrieves all delegated admin (GDAP) relationships for Backbone Connect.
+      operationId: listGDAPRelationships
+      responses:
+        200:
+          description: A list of delegated admin relationships
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/DelegatedAdminRelationship'
+        default:
+          description: Unexpected error
+    post:
+      summary: Create a GDAP relationship
+      description: Create a new delegated admin relationship with a customer.
+      operationId: createGDAPRelationship
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/CreateDelegatedAdminRelationshipRequest'
+      responses:
+        201:
+          description: GDAP relationship created
+        default:
+          description: Unexpected error
+  /beta/tenantRelationships/delegatedAdminRelationships/{id}:
+    get:
+      summary: Get GDAP relationship details
+      description: Get details for a specific GDAP relationship.
+      operationId: getGDAPRelationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+          description: Delegated admin relationship ID.
+      responses:
+        200:
+          description: GDAP relationship details
+          schema:
+            $ref: '#/definitions/DelegatedAdminRelationship'
+        404:
+          description: Relationship not found
+        default:
+          description: Unexpected error
+    patch:
+      summary: Update GDAP relationship
+      description: Update roles or status of a GDAP relationship.
+      operationId: updateGDAPRelationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+          description: Delegated admin relationship ID.
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/UpdateDelegatedAdminRelationshipRequest'
+      responses:
+        200:
+          description: GDAP relationship updated
+        default:
+          description: Unexpected error
+  /beta/tenantRelationships/delegatedAdminCustomers:
+    get:
+      summary: List all customer tenants
+      description: Retrieves all customer tenants under Backbone Connect's management.
+      operationId: listDelegatedAdminCustomers
+      responses:
+        200:
+          description: List of delegated admin customers
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/DelegatedAdminCustomer'
+        default:
+          description: Unexpected error
+  /beta/tenantRelationships/delegatedAdminCustomers/{id}:
+    get:
+      summary: Get customer tenant details
+      description: Get details for a specific customer tenant.
+      operationId: getDelegatedAdminCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+          description: Customer tenant ID.
+      responses:
+        200:
+          description: Customer tenant details
+          schema:
+            $ref: '#/definitions/DelegatedAdminCustomer'
+        404:
+          description: Customer not found
+        default:
+          description: Unexpected error
+  /organization:
+    get:
+      summary: Get organization profile
+      description: Retrieves the profile for Backbone Connect's tenant.
+      operationId: getOrganizationProfile
+      responses:
+        200:
+          description: Organization profile details
+          schema:
+            $ref: '#/definitions/Organization'
+        default:
+          description: Unexpected error
+  /directoryRoles:
+    get:
+      summary: List directory roles
+      description: Lists all directory roles available for assignments.
+      operationId: listDirectoryRoles
+      responses:
+        200:
+          description: List of directory roles
+          schema:
+            type: object
+            properties:
+              value:
+                type: array
+                items:
+                  $ref: '#/definitions/DirectoryRole'
+        default:
+          description: Unexpected error
+definitions:
+  SubscribedSku:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Unique identifier for the license SKU.
+      skuId:
+        type: string
+        description: License SKU GUID (unique for each SKU type).
+      skuPartNumber:
+        type: string
+        description: SKU identifier (e.g., M365_BUSINESS_PREMIUM).
+      prepaidUnits:
+        type: object
+        description: Purchased license pool counts.
+        properties:
+          enabled:
+            type: integer
+            description: Total purchased licenses for this SKU.
+          suspended:
+            type: integer
+            description: Suspended licenses.
+          warning:
+            type: integer
+            description: Licenses in warning state.
+      consumedUnits:
+        type: integer
+        description: Number of licenses assigned to users.
+      skuDisplayName:
+        type: string
+        description: Human-readable display name for the SKU.
+      capabilityStatus:
+        type: string
+        description: Indicates the capability status (Enabled, Suspended, etc.).
+  DelegatedAdminRelationship:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Unique identifier of the GDAP relationship.
+      displayName:
+        type: string
+        description: Display name for the relationship.
+      customer:
+        type: object
+        properties:
+          tenantId:
+            type: string
+            description: Azure AD tenant ID of the customer.
+      accessDetails:
+        type: array
+        description: Roles and access assignments.
+        items:
+          type: object
+          properties:
+            unifiedRoleDefinitionId:
+              type: string
+              description: Role definition ID.
+            principalId:
+              type: string
+              description: The objectId of the assigned group/user/service principal.
+            principalType:
+              type: string
+              description: Type of the assigned principal (User, Group, or ServicePrincipal).
+      status:
+        type: string
+        description: Status of the relationship.
+  CreateDelegatedAdminRelationshipRequest:
+    type: object
+    properties:
+      displayName:
+        type: string
+        description: Display name for the new relationship.
+      customer:
+        type: object
+        properties:
+          tenantId:
+            type: string
+            description: Azure AD tenant ID of the customer.
+      accessDetails:
+        type: array
+        items:
+          type: object
+          properties:
+            unifiedRoleDefinitionId:
+              type: string
+              description: Role definition ID to assign.
+            principalId:
+              type: string
+              description: The objectId of the assigned group/user/service principal.
+            principalType:
+              type: string
+              description: Type of the assigned principal (User, Group, or ServicePrincipal).
+  UpdateDelegatedAdminRelationshipRequest:
+    type: object
+    properties:
+      accessDetails:
+        type: array
+        items:
+          type: object
+          properties:
+            unifiedRoleDefinitionId:
+              type: string
+              description: Role definition ID.
+            principalId:
+              type: string
+              description: The objectId of the assigned group/user/service principal.
+            principalType:
+              type: string
+              description: Type of the assigned principal (User, Group, or ServicePrincipal).
+      status:
+        type: string
+        description: New status for the relationship.
+  DelegatedAdminCustomer:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Customer tenant ID.
+      displayName:
+        type: string
+        description: Customer display name.
+      email:
+        type: string
+        description: Primary contact email.
+      domains:
+        type: array
+        items:
+          type: string
+        description: List of associated domains.
+  Organization:
+    type: object
+    properties:
+      id:
+        type: string
+      displayName:
+        type: string
+      verifiedDomains:
+        type: array
+        items:
+          type: string
+  DirectoryRole:
+    type: object
+    properties:
+      id:
+        type: string
+      displayName:
+        type: string
+      description:
+        type: string
